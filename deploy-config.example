@@ -1,0 +1,25 @@
+# Endereço IP ou domínio SSH do servidor
+DEPLOY_SERVER=SEU_IP_OU_HOST
+
+# Usuário SSH
+DEPLOY_USER=deploy
+
+# Diretório preparado pelo setup-vps
+DEPLOY_PATH=/home/deploy/yourapp-api
+
+# Caminho do JAR gerado, relativo a backend
+LOCAL_JAR=target/yourapp-api.jar
+
+# Nome exigido pelo deploy.sh remoto
+REMOTE_JAR_NAME=yourapp-api.jar
+
+# Metas do Maven a serem executadas
+MAVEN_GOALS="clean package"
+
+# true executa clean package -DskipTests
+# false executa clean package com os testes
+MAVEN_SKIP_TESTS=true
+
+# Verificação após o deploy
+HEALTH_CHECK_ENABLED=true
+HEALTH_CHECK_URL=https://api.yoursite.com.br/health

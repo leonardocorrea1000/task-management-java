@@ -5,7 +5,7 @@ spring:
   config:
     import: optional:file:.env[.properties]
   application:
-    name: task-management-java
+    name: jcorrea-java-api
   datasource:
     url: ${DATABASE_URL}
     username: ${DATABASE_USERNAME:postgres}

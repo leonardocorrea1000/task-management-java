@@ -31,6 +31,10 @@ build/
 
 ### Security
 .env
+.deploy-config
+.DS_Store
+update-vps.sh
+*.jar
 
 ### VS Code ###
 .vscode/
