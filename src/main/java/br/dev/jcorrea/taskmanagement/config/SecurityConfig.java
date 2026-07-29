@@ -7,6 +7,7 @@ import org.springframework.boot.context.properties.EnableConfigurationProperties
 import org.springframework.boot.web.servlet.FilterRegistrationBean;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
+import org.springframework.http.HttpMethod;
 import org.springframework.security.authentication.AuthenticationManager;
 import org.springframework.security.authentication.AuthenticationProvider;
 import org.springframework.security.authentication.dao.DaoAuthenticationProvider;
@@ -46,10 +47,10 @@ public class SecurityConfig {
                         .authenticationEntryPoint(authenticationEntryPoint)
                         .accessDeniedHandler(accessDeniedHandler))
                 .authorizeHttpRequests(auth -> auth
+                        .requestMatchers(HttpMethod.POST, "/api/signup").permitAll()
+                        .requestMatchers(HttpMethod.POST, "/api/login").permitAll()
+                        .requestMatchers(HttpMethod.GET, "/health").permitAll()
                         .requestMatchers(
-                                "/health",
-                                "/api/signup",
-                                "/api/login",
                                 "/actuator/health",
                                 "/actuator/info",
                                 "/swagger-ui.html",
@@ -57,7 +58,7 @@ public class SecurityConfig {
                                 "/v3/api-docs/**"
                         ).permitAll()
                         .requestMatchers("/api/tasks/**").authenticated()
-                        .anyRequest().denyAll())
+                        .anyRequest().permitAll())
                 .addFilterBefore(jwtAuthenticationFilter, UsernamePasswordAuthenticationFilter.class)
                 .addFilterAfter(rateLimitFilter, JwtAuthenticationFilter.class)
                 .build();

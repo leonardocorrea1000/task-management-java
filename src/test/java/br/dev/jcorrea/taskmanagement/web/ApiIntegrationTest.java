@@ -1,5 +1,6 @@
 package br.dev.jcorrea.taskmanagement.web;
 
+import static org.hamcrest.Matchers.containsString;
 import static org.hamcrest.Matchers.notNullValue;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
@@ -34,7 +35,7 @@ import org.springframework.transaction.annotation.Transactional;
         "spring.flyway.enabled=true",
         "app.jwt.secret=test-secret-with-at-least-32-bytes-for-jwt",
         "app.jwt.expiration=3600",
-        "app.rate-limit.signup.capacity=2",
+        "app.rate-limit.signup.capacity=100",
         "app.rate-limit.signup.window=60s",
         "app.rate-limit.login.capacity=10",
         "app.rate-limit.login.window=60s",
@@ -63,7 +64,33 @@ class ApiIntegrationTest {
                 .andExpect(jsonPath("$.status").value("UP"));
 
         mockMvc.perform(get("/api/tasks"))
-                .andExpect(status().isUnauthorized());
+                .andExpect(status().isUnauthorized())
+                .andExpect(jsonPath("$.status").value(401))
+                .andExpect(jsonPath("$.error").value("Unauthorized"))
+                .andExpect(jsonPath("$.message").exists())
+                .andExpect(jsonPath("$.path").value("/api/tasks"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void signupAndLoginRejectUnsupportedGetMethods() throws Exception {
+        mockMvc.perform(get("/api/signup"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().string("Allow", containsString("POST")))
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.error").value("Method Not Allowed"))
+                .andExpect(jsonPath("$.message").value("Método HTTP GET não permitido para esta rota"))
+                .andExpect(jsonPath("$.path").value("/api/signup"))
+                .andExpect(jsonPath("$.timestamp").exists());
+
+        mockMvc.perform(get("/api/login"))
+                .andExpect(status().isMethodNotAllowed())
+                .andExpect(header().string("Allow", containsString("POST")))
+                .andExpect(jsonPath("$.status").value(405))
+                .andExpect(jsonPath("$.error").value("Method Not Allowed"))
+                .andExpect(jsonPath("$.message").value("Método HTTP GET não permitido para esta rota"))
+                .andExpect(jsonPath("$.path").value("/api/login"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test
@@ -74,7 +101,49 @@ class ApiIntegrationTest {
                                 {"name":"","email":"invalido","password":"123"}
                                 """))
                 .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Dados inválidos"))
+                .andExpect(jsonPath("$.path").value("/api/signup"))
+                .andExpect(jsonPath("$.timestamp").exists())
                 .andExpect(jsonPath("$.fieldErrors.email", notNullValue()));
+    }
+
+    @Test
+    void validSignupIsPublic() throws Exception {
+        mockMvc.perform(post("/api/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {"name":"Maria Silva","email":"maria@example.com","password":"SenhaSegura123"}
+                                """))
+                .andExpect(status().isCreated())
+                .andExpect(jsonPath("$.accessToken", notNullValue()));
+    }
+
+    @Test
+    void invalidJsonReturnsStandardBadRequest() throws Exception {
+        mockMvc.perform(post("/api/signup")
+                        .contentType("application/json")
+                        .content("""
+                                {"name":
+                                """))
+                .andExpect(status().isBadRequest())
+                .andExpect(jsonPath("$.status").value(400))
+                .andExpect(jsonPath("$.error").value("Bad Request"))
+                .andExpect(jsonPath("$.message").value("Dados inválidos"))
+                .andExpect(jsonPath("$.path").value("/api/signup"))
+                .andExpect(jsonPath("$.timestamp").exists());
+    }
+
+    @Test
+    void unknownRouteReturnsStandardNotFound() throws Exception {
+        mockMvc.perform(get("/rota-inexistente"))
+                .andExpect(status().isNotFound())
+                .andExpect(jsonPath("$.status").value(404))
+                .andExpect(jsonPath("$.error").value("Not Found"))
+                .andExpect(jsonPath("$.message").value("Recurso não encontrado"))
+                .andExpect(jsonPath("$.path").value("/rota-inexistente"))
+                .andExpect(jsonPath("$.timestamp").exists());
     }
 
     @Test

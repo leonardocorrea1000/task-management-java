@@ -2,21 +2,28 @@ package br.dev.jcorrea.taskmanagement.exception;
 
 import jakarta.servlet.http.HttpServletRequest;
 import jakarta.servlet.http.HttpServletResponse;
+import jakarta.validation.ConstraintViolationException;
+import java.util.Arrays;
 import java.util.LinkedHashMap;
 import java.util.Map;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
+import org.springframework.http.HttpHeaders;
 import org.springframework.http.HttpStatus;
+import org.springframework.http.MediaType;
 import org.springframework.http.ResponseEntity;
 import org.springframework.http.converter.HttpMessageNotReadableException;
 import org.springframework.security.authentication.BadCredentialsException;
 import org.springframework.security.access.AccessDeniedException;
 import org.springframework.security.core.AuthenticationException;
 import org.springframework.validation.FieldError;
+import org.springframework.web.HttpRequestMethodNotSupportedException;
+import org.springframework.web.bind.MissingServletRequestParameterException;
 import org.springframework.web.bind.MethodArgumentNotValidException;
 import org.springframework.web.bind.annotation.ExceptionHandler;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 import org.springframework.web.method.annotation.MethodArgumentTypeMismatchException;
+import org.springframework.web.servlet.resource.NoResourceFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -34,7 +41,26 @@ public class GlobalExceptionHandler {
                 400, "Bad Request", "Dados inválidos", request.getRequestURI(), fieldErrors));
     }
 
+    @ExceptionHandler(HttpRequestMethodNotSupportedException.class)
+    public ResponseEntity<ApiError> handleMethodNotSupported(HttpRequestMethodNotSupportedException exception,
+                                                             HttpServletRequest request) {
+        log.warn("Método HTTP {} não permitido para {}", exception.getMethod(), request.getRequestURI());
+        String message = "Método HTTP %s não permitido para esta rota".formatted(exception.getMethod());
+        String allow = String.join(", ", supportedMethods(exception));
+        return ResponseEntity.status(HttpStatus.METHOD_NOT_ALLOWED)
+                .header(HttpHeaders.ALLOW, allow)
+                .contentType(MediaType.APPLICATION_JSON)
+                .body(ApiError.of(405, "Method Not Allowed", message, request.getRequestURI()));
+    }
+
+    @ExceptionHandler(NoResourceFoundException.class)
+    public ResponseEntity<ApiError> handleNoResourceFound(NoResourceFoundException exception,
+                                                          HttpServletRequest request) {
+        return error(HttpStatus.NOT_FOUND, "Recurso não encontrado", request);
+    }
+
     @ExceptionHandler({HttpMessageNotReadableException.class, MethodArgumentTypeMismatchException.class,
+            MissingServletRequestParameterException.class, ConstraintViolationException.class,
             IllegalArgumentException.class})
     public ResponseEntity<ApiError> handleBadRequest(Exception exception, HttpServletRequest request) {
         return error(HttpStatus.BAD_REQUEST, "Dados inválidos", request);
@@ -82,5 +108,13 @@ public class GlobalExceptionHandler {
     private ResponseEntity<ApiError> error(HttpStatus status, String message, HttpServletRequest request) {
         return ResponseEntity.status(status)
                 .body(ApiError.of(status.value(), status.getReasonPhrase(), message, request.getRequestURI()));
+    }
+
+    private String[] supportedMethods(HttpRequestMethodNotSupportedException exception) {
+        String[] supportedMethods = exception.getSupportedMethods();
+        if (supportedMethods == null) {
+            return new String[0];
+        }
+        return Arrays.copyOf(supportedMethods, supportedMethods.length);
     }
 }
